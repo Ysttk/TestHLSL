@@ -4,20 +4,20 @@
 
 struct CUSTOMVERTEX
 {
-	FLOAT x,y,z,rhw;
+	FLOAT x,y,z;
 	DWORD color;
 };
 
-#define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZRHW|D3DFVF_DIFFUSE)
+#define D3DFVF_CUSTOMVERTEX (D3DFVF_XYZ|D3DFVF_DIFFUSE)
 
 CUSTOMVERTEX vertices[] =
 {
-	{ 250.0f,  250.0f, 0.5f, 1.0f, 0xffff0000, }, // x, y, z, rhw, color
-	{ 50.0f, 50.0f, 0.5f, 1.0f, 0xff00ff00, },
-	{  250.0f, 50.0f, 0.5f, 1.0f, 0xff0000ff, },
-	{ 50.0f, 50.0f, 0.5f, 1.0f, 0xff00ff00, },
-	{  250.0f, 50.0f, 0.5f, 1.0f, 0xff0000ff, },
-	{  50.0f, 250.0f, 0.5f, 1.0f, 0xffff0000, },
+	{ 250.0f,  250.0f, 0.5f,  0xffff0000, }, // x, y, z, rhw, color
+	{ 50.0f, 50.0f, 0.5f,  0xff00ff00, },
+	{  250.0f, 50.0f, 0.5f, 0xff0000ff, },
+	{ 50.0f, 50.0f, 1000.0f, 0xff00ff00, },
+	{  250.0f, 50.0f, 1000.0f, 0xff0000ff, },
+	{  50.0f, 250.0f, 1000.0f, 0xffff0000, },
 };
 
 

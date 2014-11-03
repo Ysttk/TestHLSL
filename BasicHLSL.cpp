@@ -81,6 +81,7 @@ void CALLBACK OnDestroyDevice( void* pUserContext );
 void InitApp();
 HRESULT LoadMesh( IDirect3DDevice9* pd3dDevice, WCHAR* strFileName, ID3DXMesh** ppMesh );
 void RenderText( double fTime );
+void Render();
 
 IDirect3D9* g_pD3D;
 IDirect3DDevice9* g_pDevice;
@@ -129,7 +130,7 @@ INT WINAPI wWinMain( HINSTANCE, HINSTANCE, LPWSTR, int nCmdShow)
 		else
 		{
 			// Render a frame during idle time (no messages are waiting)
-			DXUTRender3DEnvironment();
+			Render();
 		}
 	}
 
@@ -139,26 +140,36 @@ INT WINAPI wWinMain( HINSTANCE, HINSTANCE, LPWSTR, int nCmdShow)
 
 void CleanUp()
 {
-	if (g_pDevice) g_pDevice->Release();
-	if (g_pD3D) g_pD3D->Release();
+	if (g_pDevice) {
+		g_pDevice->Release();
+		g_pDevice = NULL;
+	}
+	if (g_pD3D) {
+		g_pD3D->Release();
+		g_pD3D = NULL;
+	}
 }
 void Render()
 {
 	IDirect3DDevice9* pDevice = g_pDevice;
 
+	g_pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0,0,255), 1.0f, 0);
+
+	HRESULT result;
 	D3DXMATRIX matProj, matWorld;
-	D3DXMatrixRotationY( &matWorld, timeGetTime()/150.0f );
-	HRESULT result = pDevice->SetTransform( D3DTS_WORLD, &matWorld );
-	D3DXVECTOR3 vEyePt   ( 0.0f, 0.0f,-500.0f );
-	D3DXVECTOR3 vLookatPt( 0.0f, 0.0f, -1000.0f );
+	D3DXMatrixRotationZ( &matWorld, 0.0f );
+	result = pDevice->SetTransform( D3DTS_WORLD, &matWorld );
+	D3DXVECTOR3 vEyePt   ( 0.0f, 0.0f, -500.0f );
+	D3DXVECTOR3 vLookatPt( 0.0f, 0.0f, 0.0f );
 	D3DXVECTOR3 vUpVec   ( 0.0f, 1.0f, 0.0f );
 	D3DXMATRIXA16 matView;
 	D3DXMatrixLookAtLH( &matView, &vEyePt, &vLookatPt, &vUpVec );
 	result = pDevice->SetTransform( D3DTS_VIEW, &matView );
-	D3DXMatrixPerspectiveFovLH( &matProj, D3DX_PI/4, 1.0f, 1.0f, 100.0f );
+	//D3DXMatrixOrthoLH(&matProj, 600.0f, 480.0f, 0.0f, 1000.0f);
+	D3DXMatrixPerspectiveFovLH( &matProj, 600.0f/480.0f, 120.0f*D3DX_PI/180.0f, -10.0f, 10.0f );
 	result = pDevice->SetTransform( D3DTS_PROJECTION, &matProj );
-
-	g_pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0,0,255), 1.0f, 0);
+	g_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	g_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
 
 	g_pDevice->BeginScene();
 
