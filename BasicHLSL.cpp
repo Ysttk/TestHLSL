@@ -149,15 +149,17 @@ void CleanUp()
 		g_pD3D = NULL;
 	}
 }
+
+
 void Render()
 {
 	IDirect3DDevice9* pDevice = g_pDevice;
 
-	g_pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0,0,255), 1.0f, 0);
+	
 
 	HRESULT result;
 	D3DXMATRIX matProj, matWorld;
-	D3DXMatrixRotationZ( &matWorld, 0.0f );
+	D3DXMatrixRotationZ( &matWorld, timeGetTime()/180.0f );
 	result = pDevice->SetTransform( D3DTS_WORLD, &matWorld );
 	D3DXVECTOR3 vEyePt   ( 0.0f, 0.0f, -500.0f );
 	D3DXVECTOR3 vLookatPt( 0.0f, 0.0f, 0.0f );
@@ -165,18 +167,26 @@ void Render()
 	D3DXMATRIXA16 matView;
 	D3DXMatrixLookAtLH( &matView, &vEyePt, &vLookatPt, &vUpVec );
 	result = pDevice->SetTransform( D3DTS_VIEW, &matView );
-	//D3DXMatrixOrthoLH(&matProj, 600.0f, 480.0f, 0.0f, 1000.0f);
-	D3DXMatrixPerspectiveFovLH( &matProj, 600.0f/480.0f, 120.0f*D3DX_PI/180.0f, -10.0f, 10.0f );
+	D3DXMatrixOrthoLH(&matProj, 600.0f, 480.0f, 0.0f, 2000.0f);
+	//D3DXMatrixPerspectiveFovLH( &matProj, 600.0f/480.0f, 120.0f*D3DX_PI/180.0f, -10.0f, 10.0f );
 	result = pDevice->SetTransform( D3DTS_PROJECTION, &matProj );
 	g_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 	g_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
 
+	
+	g_pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0,0,255), 1.0f, 0);
+	
 	g_pDevice->BeginScene();
 
+	
 	ProcessVertex(g_pDevice);
+	
 
 	g_pDevice->EndScene();
+	
 	g_pDevice->Present(NULL, NULL, NULL, NULL);
+	
+
 }
 
 LRESULT WINAPI MyMsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
