@@ -378,7 +378,9 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Animation.cpp" />
     <ClCompile Include="VertexProcess.cpp" />
+    <ClInclude Include="Animation.h" />
     <ClInclude Include="Global.h" />
     <ClInclude Include="VetexProcess.h" />
     <None Include="..\..\DXUT\Optional\directx.ico" />

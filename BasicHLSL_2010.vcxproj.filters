@@ -75,6 +75,7 @@
   <ItemGroup>
     <ClCompile Include="BasicHLSL.cpp" />
     <ClCompile Include="VertexProcess.cpp" />
+    <ClCompile Include="Animation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicHLSL.fx">
@@ -90,6 +91,7 @@
     </ResourceCompile>
     <ClInclude Include="VetexProcess.h" />
     <ClInclude Include="Global.h" />
+    <ClInclude Include="Animation.h" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
