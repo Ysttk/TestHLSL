@@ -85,6 +85,11 @@ void RenderText( double fTime );
 #define ANIMATION
 //#define SIMPLE_RENDER
 
+#ifdef ANIMATION
+#define NONINDEXED
+#endif
+
+
 void Render();
 void DoAnimationRender();
 void DoAnimationInit();
@@ -176,6 +181,9 @@ struct AniVertex {
 LPDIRECT3DVERTEXBUFFER9 g_pFloor;
 LPDIRECT3DTEXTURE9 g_pFloorTexture;
 D3DLIGHT9 g_Light;
+LPD3DXFRAME g_pRootFrame;
+
+void LoadFrameAnimation();
 
 void DoAnimationInit()
 {
@@ -220,13 +228,40 @@ void DoAnimationInit()
 	D3DXMatrixPerspectiveFovLH(&matProj, D3DX_PI/4.0f, 1.0f, 1.0f, 200000.0f);
 	g_pDevice->SetTransform(D3DTS_PROJECTION, &matProj);
 
+	LoadFrameAnimation();
+}
 
+void LoadFrameAnimation()
+{
+#ifdef NONINDEXED
+
+#endif
+}
+
+void DoMeshContainerRender(LPD3DXMESHCONTAINER pMeshContainer)
+{
+#ifdef NONINDEXED
+
+#endif
+}
+
+void DoFrameRender(LPD3DXFRAME pFrame)
+{
+	LPD3DXMESHCONTAINER pMeshContainer;
+	pMeshContainer = pFrame->pMeshContainer;
+	
+	while (pMeshContainer) {
+		DoMeshContainerRender(pMeshContainer);
+		pMeshContainer = pMeshContainer->pNextMeshContainer;
+	}
+
+	if (pFrame->pFrameFirstChild) DoFrameRender(pFrame->pFrameFirstChild);
+	if (pFrame->pFrameSibling) DoFrameRender(pFrame->pFrameSibling);
 }
 
 void DoAnimationRender()
 {
-
-
+	DoFrameRender(g_pRootFrame);
 }
 
 void Render()
