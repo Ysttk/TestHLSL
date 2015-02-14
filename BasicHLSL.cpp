@@ -14,6 +14,8 @@
 #include "resource.h"
 #include <tchar.h>
 #include "VetexProcess.h"
+#include "Animation.h"
+#include "Global.h"
 
 #pragma comment (lib, "d3d9.lib")
 
@@ -82,17 +84,12 @@ void InitApp();
 HRESULT LoadMesh( IDirect3DDevice9* pd3dDevice, WCHAR* strFileName, ID3DXMesh** ppMesh );
 void RenderText( double fTime );
 
-#define ANIMATION
-//#define SIMPLE_RENDER
 
-#ifdef ANIMATION
-#define NONINDEXED
-#endif
 
 
 void Render();
-void DoAnimationRender();
-void DoAnimationInit();
+
+
 
 IDirect3D9* g_pD3D;
 IDirect3DDevice9* g_pDevice;
@@ -147,7 +144,7 @@ INT WINAPI wWinMain( HINSTANCE, HINSTANCE, LPWSTR, int nCmdShow)
 			// Render a frame during idle time (no messages are waiting)
 #ifdef SIMPLE_RENDER
 			Render();
-#elif define ANIMATION
+#elif defined ANIMATION
 			DoAnimationRender();
 #endif
 		}
@@ -169,100 +166,8 @@ void CleanUp()
 	}
 }
 
-struct AniVertex {
-	float x,y,z;
-	float u,v;
-	AniVertex(float ax,float ay,float az,float au,float av) :
-	x(az), y(ay), z(az), u(au), v(av){}
-};
-
-#define D3DFVF_ANIVERTEX (D3DFVF_XYZ | D3DFVF_TEX1)
-
-LPDIRECT3DVERTEXBUFFER9 g_pFloor;
-LPDIRECT3DTEXTURE9 g_pFloorTexture;
-D3DLIGHT9 g_Light;
-LPD3DXFRAME g_pRootFrame;
-
-void LoadFrameAnimation();
-
-void DoAnimationInit()
-{
-	g_pDevice->CreateVertexBuffer(4*sizeof(AniVertex), 0, D3DFVF_ANIVERTEX, D3DPOOL_MANAGED, &g_pFloor, NULL);
-	AniVertex* pVertex = NULL;
-	g_pFloor->Lock(0, 0, (void**)&pVertex, 0);
-	pVertex[0] = AniVertex(-5000.0f, 0.0f, -5000.0f, 0.0f, 30.0f);
-	pVertex[1] = AniVertex(-5000.0f, 0.0f, 5000.0f, 0.0f, 0.0f);
-	pVertex[2] = AniVertex(5000.0f, 0.0f, -5000.0f, 30.0f, 30.0f);
-	pVertex[3] = AniVertex(5000.0f, 0.0f, 5000.0f, 30.0f, 0.0f);
-	g_pFloor->Unlock();
-
-	D3DXCreateTextureFromFileW(g_pDevice, L"GameMedia\\wood.jpg", &g_pFloorTexture);
-	g_pDevice->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-	g_pDevice->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-	g_pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-	g_pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 
 
-	::ZeroMemory(&g_Light, sizeof(g_Light));
-	g_Light.Type = D3DLIGHT_DIRECTIONAL;
-	g_Light.Ambient = D3DXCOLOR(0.7f, 0.7f, 0.7f, 1.0f);
-	g_Light.Diffuse = D3DXCOLOR(1.0f, 1.0f, 1.0f, 1.0f);
-	g_Light.Specular = D3DXCOLOR(0.9f, 0.9f, 0.9f, 1.0f);
-	g_Light.Direction = D3DXVECTOR3(1.0f, 1.0f, 1.0f);
-
-	g_pDevice->SetLight(0, &g_Light);
-	g_pDevice->LightEnable(0, true);
-
-	g_pDevice->SetRenderState(D3DRS_NORMALIZENORMALS, true);
-	g_pDevice->SetRenderState(D3DRS_SPECULARENABLE, true);
-
-	D3DXVECTOR3 vEyePt(0.0f, 200.0f, -800.0f);
-	D3DXVECTOR3 vLookatPt(0.0f, 400.0f, 0.0f);
-	D3DXVECTOR3 vLook = vLookatPt - vEyePt;
-	D3DXVec3Normalize(&vLook, &vLook);
-	D3DXVECTOR3 vUp(0.0f, 1.0f, 0.0f);
-	D3DXMATRIXA16 matView;
-	D3DXMatrixLookAtLH(&matView, &vEyePt, &vLookatPt, &vUp);
-	g_pDevice->SetTransform(D3DTS_VIEW, &matView);
-	D3DXMATRIX matProj;
-	D3DXMatrixPerspectiveFovLH(&matProj, D3DX_PI/4.0f, 1.0f, 1.0f, 200000.0f);
-	g_pDevice->SetTransform(D3DTS_PROJECTION, &matProj);
-
-	LoadFrameAnimation();
-}
-
-void LoadFrameAnimation()
-{
-#ifdef NONINDEXED
-
-#endif
-}
-
-void DoMeshContainerRender(LPD3DXMESHCONTAINER pMeshContainer)
-{
-#ifdef NONINDEXED
-
-#endif
-}
-
-void DoFrameRender(LPD3DXFRAME pFrame)
-{
-	LPD3DXMESHCONTAINER pMeshContainer;
-	pMeshContainer = pFrame->pMeshContainer;
-	
-	while (pMeshContainer) {
-		DoMeshContainerRender(pMeshContainer);
-		pMeshContainer = pMeshContainer->pNextMeshContainer;
-	}
-
-	if (pFrame->pFrameFirstChild) DoFrameRender(pFrame->pFrameFirstChild);
-	if (pFrame->pFrameSibling) DoFrameRender(pFrame->pFrameSibling);
-}
-
-void DoAnimationRender()
-{
-	DoFrameRender(g_pRootFrame);
-}
 
 void Render()
 {
