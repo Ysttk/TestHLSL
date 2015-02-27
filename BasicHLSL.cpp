@@ -107,6 +107,11 @@ INT WINAPI wWinMain( HINSTANCE, HINSTANCE, LPWSTR, int nCmdShow)
 					_T("TestD3DX"), NULL};
 	RegisterClassEx(&wc);
 
+	AllocConsole();
+	freopen("CONOUT$", "w", stdout);
+	freopen("CONOUT$", "w", stderr);
+	freopen("CON", "r", stdin);
+
 	HWND hWnd = CreateWindow(_T("TestD3DX"), _T("TestD3DX and HLSL"), WS_OVERLAPPEDWINDOW, 100, 100, 600, 480, GetDesktopWindow(), NULL, wc.hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
 	UpdateWindow(hWnd);

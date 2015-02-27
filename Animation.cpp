@@ -62,7 +62,6 @@ LPDIRECT3DTEXTURE9 g_pFloorTexture;
 D3DLIGHT9 g_Light;
 LPD3DXFRAME g_pRootFrame;
 
-
 void DoJW3AnimationInit()
 {
 
@@ -158,6 +157,7 @@ struct MyMeshContainer : D3DXMESHCONTAINER
 	DWORD* pOrigAdjacency;
 	DWORD AdjacencyLen;
 	LPD3DXMATRIX* pRelatedBoneCombineTransformMatrices;
+	LPD3DXMATRIX pBoneOffsetMatrices;
 
 	LPDIRECT3DTEXTURE9* ppTextures;
 };
@@ -206,6 +206,8 @@ HRESULT MyFrameAlloc::CreateMeshContainer(LPCSTR Name, CONST D3DXMESHDATA *pMesh
 	pMeshContainer->OriginalMesh = *pMeshData;
 	pMeshData->pMesh->AddRef();
 	pMeshData->pMesh->GetDevice(&pDevice);
+
+	
 	//HRESULT hr = pMeshData->pMesh->CloneMeshFVF(pMeshData->pMesh->GetOptions(), pMeshData->pMesh->GetFVF(), pDevice, &pMeshContainer->MeshData.pMesh);
 
 
@@ -217,6 +219,10 @@ HRESULT MyFrameAlloc::CreateMeshContainer(LPCSTR Name, CONST D3DXMESHDATA *pMesh
 	if (pSkinInfo) {
 		(*ppNewMeshContainer)->pSkinInfo = pSkinInfo;
 		pSkinInfo->AddRef();
+		DWORD numBones = pSkinInfo->GetNumBones();
+		pMeshContainer->pBoneOffsetMatrices = new D3DXMATRIX[numBones];
+		for (int idx=0; idx<numBones; idx++)
+			pMeshContainer->pBoneOffsetMatrices[idx] = *(pSkinInfo->GetBoneOffsetMatrix(idx));
 	}
 	(*ppNewMeshContainer)->pEffects = NULL;
 
@@ -270,7 +276,7 @@ HRESULT MyFrameAlloc::DestroyMeshContainer(LPD3DXMESHCONTAINER pMeshContainer)
 	for (int idx=0; idx<pMyMeshContainer->NumMaterials; idx++) 
 		SAFE_RELEASE(pMyMeshContainer->ppTextures[idx])
 	SAFE_DELETE_ARRAY(pMyMeshContainer->ppTextures);
-
+	SAFE_DELETE_ARRAY(pMyMeshContainer->pBoneOffsetMatrices);
 	SAFE_DELETE(pMyMeshContainer);
 	return S_OK;
 }
@@ -315,7 +321,7 @@ void DoD3DAnimationInit()
 	D3DXLoadMeshHierarchyFromX(L"GameMedia\\Tiny\\tiny.x", D3DXMESH_MANAGED, g_pDevice, &Alloc, NULL, &g_pRootFrame, &g_pAnimationController);
 	SetupMeshContainer2BoneMatrices(g_pRootFrame);
 	HRESULT hr = D3DXFrameCalculateBoundingSphere( g_pRootFrame, &g_vObjectCenter, &g_fObjectRadius );
-	g_fObjectRadius = 3740.57941;
+	g_fObjectRadius = 740.57941;
 	g_vObjectCenter.x = 0.38327789;
 	g_vObjectCenter.y =	-29.290051;
 	g_vObjectCenter.z = 107.19625;
@@ -347,8 +353,16 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 	D3DXMATRIXA16* boneMatrices = new D3DXMATRIXA16[NumBones];
 	for (int idx=0; idx<NumBones; idx++) {
 		D3DXMATRIX* boneOffsetMatrix = pMeshContainer->pSkinInfo->GetBoneOffsetMatrix(idx);
-		D3DXMatrixMultiply(boneMatrices+idx, pMeshContainer->pRelatedBoneCombineTransformMatrices[idx],  boneOffsetMatrix);
+		D3DXMatrixMultiply(boneMatrices+idx, &(pMeshContainer->pBoneOffsetMatrices[idx]), pMeshContainer->pRelatedBoneCombineTransformMatrices[idx]);
+		
 	}
+
+	LPDIRECT3DDEVICE9 pDevice;
+	pMeshContainer->MeshData.pMesh->GetDevice(&pDevice);
+
+	//D3DXMATRIX identity;
+	//D3DXMatrixIdentity(&identity);
+	//pDevice->SetTransform(D3DTS_WORLD, &identity);
 
 	float *pVSrc, *pVDest;
 	pMeshContainer->OriginalMesh.pMesh->LockVertexBuffer(D3DLOCK_READONLY, (LPVOID*)&pVSrc);
@@ -357,13 +371,13 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 	pMeshContainer->MeshData.pMesh->UnlockVertexBuffer();
 	pMeshContainer->OriginalMesh.pMesh->UnlockVertexBuffer();
 
-	DWORD numAttribute;
+	DWORD numAttribute; 
 	D3DXATTRIBUTERANGE* pAttributeTbl;
 	pMeshContainer->MeshData.pMesh->GetAttributeTable(NULL, &numAttribute);
 	pAttributeTbl = new D3DXATTRIBUTERANGE[numAttribute];
 	pMeshContainer->MeshData.pMesh->GetAttributeTable(pAttributeTbl, NULL);
-	LPDIRECT3DDEVICE9 pDevice;
-	pMeshContainer->MeshData.pMesh->GetDevice(&pDevice);
+
+
 	for (int idx=0; idx<numAttribute; idx++) {
 		pDevice->SetMaterial(&(pMeshContainer->pMaterials[pAttributeTbl[idx].AttribId].MatD3D));
 		pDevice->SetTexture(0, pMeshContainer->ppTextures[pAttributeTbl[idx].AttribId]);
@@ -392,7 +406,7 @@ void DoFrameRender(LPD3DXFRAME pFrame)
 void DoFrameMove(LPD3DXFRAME pFrame, LPD3DXMATRIX pMatParent)
 {
 	MyFrame* pMyFrame = (MyFrame*)pFrame;
-	D3DXMatrixMultiply(&pMyFrame->CombinedTransformMatrix, pMatParent, &pFrame->TransformationMatrix);
+	D3DXMatrixMultiply(&pMyFrame->CombinedTransformMatrix,  &pFrame->TransformationMatrix, pMatParent);
 	if (pFrame->pFrameFirstChild) DoFrameMove(pFrame->pFrameFirstChild, &pMyFrame->CombinedTransformMatrix);
 	if (pFrame->pFrameSibling) DoFrameMove(pFrame->pFrameSibling, pMatParent);
 }
@@ -438,9 +452,9 @@ void DoAnimationRender()
 	light.Diffuse.b = 1.0f;
 	D3DXVec3Normalize( ( D3DXVECTOR3* )&light.Direction, &vecLightDirUnnormalized );
 	light.Position.x = 0.0f;
-	light.Position.y = -1.0f;
-	light.Position.z = 1.0f;
-	light.Range = 1000.0f;
+	light.Position.y = 1000.0f;
+	light.Position.z = -1000.0f;
+	light.Range = 10000.0f;
 
 	g_pDevice->SetLight(0, &light);
 	g_pDevice->LightEnable(0, TRUE);
