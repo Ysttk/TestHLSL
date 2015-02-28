@@ -7,6 +7,6 @@ extern IDirect3DDevice9* g_pDevice;
 //#define SIMPLE_RENDER
 
 #ifdef ANIMATION
-//#define NONINDEXED
-#define SOFTWARE
+#define NONINDEXED
+//#define SOFTWARE
 #endif
