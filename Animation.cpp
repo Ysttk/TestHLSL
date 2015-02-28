@@ -187,6 +187,7 @@ void GenerateDrawableMesh(MyMeshContainer* pMeshContainer)
 	memset(&pMeshContainer->MeshData, 0, sizeof(pMeshContainer->MeshData));
 	HRESULT hr = pMeshContainer->OriginalMesh.pMesh->CloneMeshFVF(D3DXMESH_MANAGED, pMeshContainer->OriginalMesh.pMesh->GetFVF(), pDevice, 
 		&pMeshContainer->MeshData.pMesh);
+	pMeshContainer->MeshData.Type = pMeshContainer->OriginalMesh.Type;
 	pMeshData->pMesh->Release();
 
 #endif
@@ -203,6 +204,7 @@ HRESULT MyFrameAlloc::CreateMeshContainer(LPCSTR Name, CONST D3DXMESHDATA *pMesh
 	(*ppNewMeshContainer)->Name = new CHAR[len];
 	memcpy((*ppNewMeshContainer)->Name, Name, len);
 
+	
 	pMeshContainer->OriginalMesh = *pMeshData;
 	pMeshData->pMesh->AddRef();
 	pMeshData->pMesh->GetDevice(&pDevice);
@@ -321,10 +323,6 @@ void DoD3DAnimationInit()
 	D3DXLoadMeshHierarchyFromX(L"GameMedia\\Tiny\\tiny.x", D3DXMESH_MANAGED, g_pDevice, &Alloc, NULL, &g_pRootFrame, &g_pAnimationController);
 	SetupMeshContainer2BoneMatrices(g_pRootFrame);
 	HRESULT hr = D3DXFrameCalculateBoundingSphere( g_pRootFrame, &g_vObjectCenter, &g_fObjectRadius );
-	g_fObjectRadius = 740.57941;
-	g_vObjectCenter.x = 0.38327789;
-	g_vObjectCenter.y =	-29.290051;
-	g_vObjectCenter.z = 107.19625;
 
 	float fAspect = 1.3333334f;
 	D3DXMatrixPerspectiveFovLH( &g_matProj, D3DX_PI / 4, fAspect,
@@ -349,12 +347,12 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 #ifdef NONINDEXED
 
 #elif defined SOFTWARE
+	
 	DWORD NumBones = pMeshContainer->pSkinInfo->GetNumBones();
 	D3DXMATRIXA16* boneMatrices = new D3DXMATRIXA16[NumBones];
 	for (int idx=0; idx<NumBones; idx++) {
 		D3DXMATRIX* boneOffsetMatrix = pMeshContainer->pSkinInfo->GetBoneOffsetMatrix(idx);
-		D3DXMatrixMultiply(boneMatrices+idx, &(pMeshContainer->pBoneOffsetMatrices[idx]), pMeshContainer->pRelatedBoneCombineTransformMatrices[idx]);
-		
+		D3DXMatrixMultiply(boneMatrices+idx, &(pMeshContainer->pBoneOffsetMatrices[idx]), pMeshContainer->pRelatedBoneCombineTransformMatrices[idx]);	
 	}
 
 	LPDIRECT3DDEVICE9 pDevice;
@@ -411,16 +409,26 @@ void DoFrameMove(LPD3DXFRAME pFrame, LPD3DXMATRIX pMatParent)
 	if (pFrame->pFrameSibling) DoFrameMove(pFrame->pFrameSibling, pMatParent);
 }
 
-double GetTimeNow()
+LARGE_INTEGER GetTimeNow()
 {
-	return time(NULL);
+	LARGE_INTEGER qwTime;
+	QueryPerformanceCounter(&qwTime);
+
+	return qwTime;
 }
 
-double PreviousRenderTime = GetTimeNow();
+LONGLONG GetFrequence()
+{
+	LARGE_INTEGER time;
+	QueryPerformanceFrequency(&time);
+	return time.QuadPart;
+}
+
+LARGE_INTEGER PreviousRenderTime = GetTimeNow();
+LONGLONG TickPerSecond = GetFrequence();
 
 void DoAnimationRender()
 {
-
 
 	D3DXMATRIX matWorld;
 	D3DXMatrixIdentity(&matWorld);
@@ -436,7 +444,8 @@ void DoAnimationRender()
 	D3DXMatrixLookAtLH( &g_matView, &vEye, &vAt, &vUp );
 	g_pDevice->SetTransform( D3DTS_VIEW, &g_matView );
 
-	g_pAnimationController->AdvanceTime(GetTimeNow()-PreviousRenderTime, NULL);
+	float timeElapsed = (GetTimeNow().QuadPart - PreviousRenderTime.QuadPart)/(double)TickPerSecond;
+	g_pAnimationController->AdvanceTime(timeElapsed, NULL);
 	PreviousRenderTime = GetTimeNow();
 
 	DoFrameMove(g_pRootFrame, &matWorld);
