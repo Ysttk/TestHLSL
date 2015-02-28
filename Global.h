@@ -7,6 +7,9 @@ extern IDirect3DDevice9* g_pDevice;
 //#define SIMPLE_RENDER
 
 #ifdef ANIMATION
-#define NONINDEXED
+//#define NONINDEXED
+#define INDEXED
 //#define SOFTWARE
 #endif
+
+#define MIN(x,y) ((x)>(y)?(y):(x))

@@ -164,6 +164,10 @@ struct MyMeshContainer : D3DXMESHCONTAINER
 	DWORD* pNumInflList;
 	LPD3DXBUFFER pBoneCombineBuff;
 
+	// Add for INDEXED style
+	DWORD NumMaxFaceInfl, NumPalattes;
+
+
 	LPDIRECT3DTEXTURE9* ppTextures;
 };
 
@@ -211,6 +215,40 @@ void GenerateDrawableMesh(MyMeshContainer* pMeshContainer)
 		pNewMesh = NULL;
 	}
 	
+#elif defined INDEXED
+
+	LPDIRECT3DINDEXBUFFER9 pIB;
+	pMeshContainer->OriginalMesh.pMesh->GetIndexBuffer(&pIB);
+	DWORD NumMaxFaceInfl;
+	pMeshContainer->pSkinInfo->GetMaxFaceInfluences(pIB, pMeshContainer->OriginalMesh.pMesh->GetNumFaces(), &NumMaxFaceInfl);
+	pIB->Release();
+	NumMaxFaceInfl = NumMaxFaceInfl>12?12:NumMaxFaceInfl;
+	LPDIRECT3DDEVICE9 pDevice;
+	D3DCAPS9 d3dCaps;
+	pMeshContainer->OriginalMesh.pMesh->GetDevice(&pDevice);
+	pDevice->GetDeviceCaps(&d3dCaps);
+	pMeshContainer->NumMaxFaceInfl = NumMaxFaceInfl;
+	DWORD flags = D3DXMESHOPT_VERTEXCACHE;
+	if (NumMaxFaceInfl > d3dCaps.MaxVertexBlendMatrixIndex) {
+		pMeshContainer->NumPalattes = MIN(256, pMeshContainer->pSkinInfo->GetNumBones());
+		flags |= D3DXMESH_SYSTEMMEM;
+	} else {
+		pMeshContainer->NumPalattes = MIN( (d3dCaps.MaxVertexBlendMatrixIndex+1)/2, pMeshContainer->pSkinInfo->GetNumBones());
+		flags |= D3DXMESH_MANAGED;
+	}
+
+	pMeshContainer->pSkinInfo->ConvertToIndexedBlendedMesh(
+		pMeshContainer->OriginalMesh.pMesh,
+		flags,
+		pMeshContainer->NumPalattes,
+		pMeshContainer->pAdjacency,
+		NULL, NULL, NULL,
+		&pMeshContainer->MaxNumInfl,
+		&pMeshContainer->NumAttriGroup,
+		&pMeshContainer->pBoneCombineBuff,
+		&pMeshContainer->MeshData.pMesh);
+	pMeshContainer->MeshData.Type = pMeshContainer->OriginalMesh.Type;
+
 #elif defined SOFTWARE
 
 	LPDIRECT3DDEVICE9 pDevice;
@@ -423,6 +461,52 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 	}
 
 	pDevice->SetRenderState(D3DRS_VERTEXBLEND, 0);
+#elif defined INDEXED
+	LPDIRECT3DDEVICE9 pDevice;
+	pMeshContainer->MeshData.pMesh->GetDevice(&pDevice);
+	D3DCAPS9 d3dCaps;
+	pDevice->GetDeviceCaps(&d3dCaps);
+	LPD3DXBONECOMBINATION pBoneCombinationBuff = reinterpret_cast<LPD3DXBONECOMBINATION>(pMeshContainer->pBoneCombineBuff->GetBufferPointer());
+
+	if (pMeshContainer->NumMaxFaceInfl>d3dCaps.MaxVertexBlendMatrixIndex)
+		pDevice->SetSoftwareVertexProcessing(TRUE);
+
+	if( pMeshContainer->MaxNumInfl == 1 )
+	{
+		 pDevice->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_0WEIGHTS);
+	}
+	else
+	{
+		pDevice->SetRenderState( D3DRS_VERTEXBLEND, pMeshContainer->MaxNumInfl - 1 );
+	}
+
+	pDevice->SetRenderState(D3DRS_INDEXEDVERTEXBLENDENABLE, TRUE);
+
+	for (int iAttriIdx=0; iAttriIdx<pMeshContainer->NumAttriGroup; iAttriIdx++) {
+		int count=0;
+		for (int iInfl=0; iInfl<pMeshContainer->MaxNumInfl; iInfl++) {
+			UINT boneIdx = pBoneCombinationBuff[iAttriIdx].BoneId[iInfl];
+			if (boneIdx != UINT_MAX) {
+				D3DXMATRIX targetMatrix;
+				D3DXMatrixMultiply(&targetMatrix, pMeshContainer->pSkinInfo->GetBoneOffsetMatrix(boneIdx), pMeshContainer->pRelatedBoneCombineTransformMatrices[boneIdx]);
+				pDevice->SetTransform(D3DTS_WORLDMATRIX(iInfl), &targetMatrix);
+				count ++;
+			}
+		}
+		//pDevice->SetRenderState(D3DRS_VERTEXBLEND, count);
+
+		pDevice->SetMaterial(&pMeshContainer->pMaterials[pBoneCombinationBuff[iAttriIdx].AttribId].MatD3D);
+		pDevice->SetTexture(0, pMeshContainer->ppTextures[pBoneCombinationBuff[iAttriIdx].AttribId]);
+
+		pMeshContainer->MeshData.pMesh->DrawSubset(iAttriIdx);
+	}
+
+	pDevice->SetRenderState(D3DRS_INDEXEDVERTEXBLENDENABLE, FALSE);
+	pDevice->SetRenderState(D3DRS_VERTEXBLEND, 0);
+	
+	if (pMeshContainer->NumMaxFaceInfl > d3dCaps.MaxVertexBlendMatrixIndex)
+		pDevice->SetSoftwareVertexProcessing(FALSE);
+
 #elif defined SOFTWARE
 	
 	DWORD NumBones = pMeshContainer->pSkinInfo->GetNumBones();
