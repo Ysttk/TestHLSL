@@ -437,6 +437,8 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 	pDevice->GetDeviceCaps(&d3dCaps);
 	LPD3DXBONECOMBINATION pBoneCombinationBuff = reinterpret_cast<LPD3DXBONECOMBINATION>(pMeshContainer->pBoneCombineBuff->GetBufferPointer());
 
+	printf("\nFace:%d Vertex:%d\n", pMeshContainer->MeshData.pMesh->GetNumFaces(), pMeshContainer->MeshData.pMesh->GetNumVertices());
+	printf("Original Face:%d Original Vertex:%d\n", pMeshContainer->OriginalMesh.pMesh->GetNumFaces(), pMeshContainer->OriginalMesh.pMesh->GetNumVertices());
 	for (int i=0; i<pMeshContainer->NumAttriGroup; i++) {
 		printf("\n");
 		printf("%d %d %d %d", pBoneCombinationBuff[i].FaceStart, pBoneCombinationBuff[i].FaceCount, pBoneCombinationBuff[i].VertexStart, pBoneCombinationBuff[i].VertexCount);
@@ -473,7 +475,9 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 	D3DCAPS9 d3dCaps;
 	pDevice->GetDeviceCaps(&d3dCaps);
 	LPD3DXBONECOMBINATION pBoneCombinationBuff = reinterpret_cast<LPD3DXBONECOMBINATION>(pMeshContainer->pBoneCombineBuff->GetBufferPointer());
-
+	//以下打印出的信息完全不能理解！！！*_*！
+	printf("\nFace:%d Vertex:%d\n", pMeshContainer->MeshData.pMesh->GetNumFaces(), pMeshContainer->MeshData.pMesh->GetNumVertices());
+	printf("Original Face:%d Original Vertex:%d\n", pMeshContainer->OriginalMesh.pMesh->GetNumFaces(), pMeshContainer->OriginalMesh.pMesh->GetNumVertices());
 	for (int i=0; i<pMeshContainer->NumAttriGroup; i++) {
 		printf("\n");
 		printf("%d %d %d %d", pBoneCombinationBuff[i].FaceStart, pBoneCombinationBuff[i].FaceCount, pBoneCombinationBuff[i].VertexStart, pBoneCombinationBuff[i].VertexCount);
