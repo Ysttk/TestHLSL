@@ -132,7 +132,7 @@ INT WINAPI wWinMain( HINSTANCE, HINSTANCE, LPWSTR, int nCmdShow)
 #endif
 
 	
-	if (FAILED(g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &g_pDevice))) return E_FAIL;
+	if (FAILED(g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_MIXED_VERTEXPROCESSING, &d3dpp, &g_pDevice))) return E_FAIL;
 
 #ifdef ANIMATION
 	DoAnimationInit();

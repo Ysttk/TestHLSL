@@ -437,6 +437,12 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 	pDevice->GetDeviceCaps(&d3dCaps);
 	LPD3DXBONECOMBINATION pBoneCombinationBuff = reinterpret_cast<LPD3DXBONECOMBINATION>(pMeshContainer->pBoneCombineBuff->GetBufferPointer());
 
+	for (int i=0; i<pMeshContainer->NumAttriGroup; i++) {
+		printf("\n");
+		printf("%d %d %d %d", pBoneCombinationBuff[i].FaceStart, pBoneCombinationBuff[i].FaceCount, pBoneCombinationBuff[i].VertexStart, pBoneCombinationBuff[i].VertexCount);
+
+	}
+
 	for (int iAttriIdx=0; iAttriIdx<pMeshContainer->NumAttriGroup; iAttriIdx++) {
 		DWORD numInfl = pMeshContainer->pNumInflList[iAttriIdx];
 		if (numInfl > d3dCaps.MaxVertexBlendMatrices) {
@@ -468,6 +474,12 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 	pDevice->GetDeviceCaps(&d3dCaps);
 	LPD3DXBONECOMBINATION pBoneCombinationBuff = reinterpret_cast<LPD3DXBONECOMBINATION>(pMeshContainer->pBoneCombineBuff->GetBufferPointer());
 
+	for (int i=0; i<pMeshContainer->NumAttriGroup; i++) {
+		printf("\n");
+		printf("%d %d %d %d", pBoneCombinationBuff[i].FaceStart, pBoneCombinationBuff[i].FaceCount, pBoneCombinationBuff[i].VertexStart, pBoneCombinationBuff[i].VertexCount);
+			
+	}
+
 	if (pMeshContainer->NumMaxFaceInfl>d3dCaps.MaxVertexBlendMatrixIndex)
 		pDevice->SetSoftwareVertexProcessing(TRUE);
 
@@ -484,11 +496,12 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 
 	for (int iAttriIdx=0; iAttriIdx<pMeshContainer->NumAttriGroup; iAttriIdx++) {
 		int count=0;
-		for (int iInfl=0; iInfl<pMeshContainer->MaxNumInfl; iInfl++) {
+		for (int iInfl=0; iInfl<pMeshContainer->NumPalattes; iInfl++) {
 			UINT boneIdx = pBoneCombinationBuff[iAttriIdx].BoneId[iInfl];
 			if (boneIdx != UINT_MAX) {
 				D3DXMATRIX targetMatrix;
 				D3DXMatrixMultiply(&targetMatrix, pMeshContainer->pSkinInfo->GetBoneOffsetMatrix(boneIdx), pMeshContainer->pRelatedBoneCombineTransformMatrices[boneIdx]);
+				
 				pDevice->SetTransform(D3DTS_WORLDMATRIX(iInfl), &targetMatrix);
 				count ++;
 			}
