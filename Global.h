@@ -8,8 +8,9 @@ extern IDirect3DDevice9* g_pDevice;
 
 #ifdef ANIMATION
 //#define NONINDEXED
-#define INDEXED
+//#define INDEXED
 //#define SOFTWARE
+#define HLSL
 #endif
 
 #define MIN(x,y) ((x)>(y)?(y):(x))

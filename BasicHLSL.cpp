@@ -30,7 +30,7 @@ ID3DXFont*                  g_pFont = NULL;         // Font for drawing text
 ID3DXSprite*                g_pSprite = NULL;       // Sprite for batching draw text calls
 bool                        g_bShowHelp = true;     // If true, it renders the UI control text
 CModelViewerCamera          g_Camera;               // A model viewing camera
-ID3DXEffect*                g_pEffect = NULL;       // D3DX effect interface
+static ID3DXEffect*                g_pEffect = NULL;       // D3DX effect interface
 ID3DXMesh*                  g_pMesh = NULL;         // Mesh object
 IDirect3DTexture9*          g_pMeshTexture = NULL;  // Mesh texture
 CDXUTDialogResourceManager  g_DialogResourceManager; // manager for shared resources of dialogs

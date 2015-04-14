@@ -62,6 +62,7 @@ LPDIRECT3DTEXTURE9 g_pFloorTexture;
 D3DLIGHT9 g_Light;
 LPD3DXFRAME g_pRootFrame;
 
+
 void DoJW3AnimationInit()
 {
 
@@ -249,6 +250,58 @@ void GenerateDrawableMesh(MyMeshContainer* pMeshContainer)
 		&pMeshContainer->MeshData.pMesh);
 	pMeshContainer->MeshData.Type = pMeshContainer->OriginalMesh.Type;
 
+#elif defined HLSL
+	int MaxMatrix = 26;
+	pMeshContainer->NumPalattes = MIN(MaxMatrix, pMeshContainer->pSkinInfo->GetNumBones());
+
+	DWORD flags = D3DXMESHOPT_VERTEXCACHE;
+	D3DCAPS9 d3dCaps;
+	LPDIRECT3DDEVICE9 pDevice;
+	pMeshContainer->OriginalMesh.pMesh->GetDevice(&pDevice);
+	pDevice->GetDeviceCaps(&d3dCaps);
+	if (d3dCaps.VertexShaderVersion >= D3DVS_VERSION(1, 1)) {
+		flags |= D3DXMESH_MANAGED;
+	} else {
+		flags |= D3DXMESH_SYSTEMMEM;
+	}
+
+	HRESULT hr = pMeshContainer->pSkinInfo->ConvertToIndexedBlendedMesh(
+		pMeshContainer->OriginalMesh.pMesh,
+		flags,
+		pMeshContainer->NumPalattes,
+		pMeshContainer->pAdjacency,
+		NULL, NULL, NULL,
+		&pMeshContainer->MaxNumInfl,
+		&pMeshContainer->NumAttriGroup,
+		&pMeshContainer->pBoneCombineBuff,
+		&pMeshContainer->MeshData.pMesh);
+	pMeshContainer->MeshData.Type = pMeshContainer->OriginalMesh.Type;
+
+	DWORD NewFVF = (pMeshContainer->MeshData.pMesh->GetFVF() & D3DFVF_POSITION_MASK) | D3DFVF_NORMAL | D3DFVF_TEX1 | D3DFVF_LASTBETA_UBYTE4;
+
+	if (NewFVF != pMeshContainer->MeshData.pMesh->GetFVF()) {
+		LPD3DXMESH pMesh;
+		pMeshContainer->MeshData.pMesh->CloneMeshFVF(
+			pMeshContainer->MeshData.pMesh->GetFVF(),
+			NewFVF, pDevice, &pMesh);
+		pMeshContainer->MeshData.pMesh->Release();
+		pMeshContainer->MeshData.pMesh = pMesh;
+	}
+
+	D3DVERTEXELEMENT9 pDecl[MAX_FVF_DECL_SIZE];
+	LPD3DVERTEXELEMENT9 pDeclCur;
+	hr = pMeshContainer->MeshData.pMesh->GetDeclaration(pDecl);
+	pDeclCur = pDecl;
+	while (pDeclCur->Stream != 0xff) {
+		if ((pDeclCur->Usage == D3DDECLUSAGE_BLENDINDICES) && (pDeclCur->UsageIndex == 0))
+			pDeclCur->Type = D3DDECLTYPE_D3DCOLOR;
+		pDeclCur ++;
+	}
+	
+	pMeshContainer->MeshData.pMesh->UpdateSemantics(pDecl);
+
+	
+
 #elif defined SOFTWARE
 
 	LPDIRECT3DDEVICE9 pDevice;
@@ -390,6 +443,9 @@ D3DXVECTOR3                 g_vObjectCenter;        // Center of bounding sphere
 FLOAT                       g_fObjectRadius;        // Radius of bounding sphere of object
 //CD3DArcBall                 g_ArcBall;              // Arcball for model control
 D3DXMATRIXA16 g_matProj;
+D3DXMATRIX g_matView;
+ID3DXEffect* g_pEffect;
+
 
 void DoD3DAnimationInit()
 {
@@ -414,7 +470,15 @@ void DoD3DAnimationInit()
 	D3DXMatrixPerspectiveFovLH( &g_matProj, D3DX_PI / 4, fAspect,
 		g_fObjectRadius / 64.0f, g_fObjectRadius * 200.0f );
 	g_pDevice->SetTransform( D3DTS_PROJECTION, &g_matProj );
-
+	TCHAR str[1024];
+	DXUTFindDXSDKMediaFileCch(str, 1024,  L"MyShader.fx");
+	DWORD dwShaderFlags = D3DXFX_NOT_CLONEABLE | D3DXSHADER_DEBUG;
+	LPD3DXBUFFER lpError =NULL;
+	D3DXCreateEffectFromFile(pd3dDevice, str, NULL, NULL, dwShaderFlags, NULL, &g_pEffect, &lpError);
+	char* text;
+	if (lpError) {
+		text = (char*)lpError->GetBufferPointer();
+	}
 }
 
 void DoAnimationInit()
@@ -523,7 +587,55 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 	
 	if (pMeshContainer->NumMaxFaceInfl > d3dCaps.MaxVertexBlendMatrixIndex)
 		pDevice->SetSoftwareVertexProcessing(FALSE);
+#elif defined HLSL
+	LPD3DXBONECOMBINATION pBoneComb = reinterpret_cast<LPD3DXBONECOMBINATION>(pMeshContainer->pBoneCombineBuff->GetBufferPointer());
+	D3DXMATRIX bones[MAX_NUM_BONES];
+	LPDIRECT3DDEVICE9 pDevice;
+	pMeshContainer->MeshData.pMesh->GetDevice(&pDevice);
+	
+	for (int iAttriIdx=0; iAttriIdx<pMeshContainer->NumAttriGroup; iAttriIdx++) {
+		for (int iEntry=0; iEntry<pMeshContainer->NumPalattes; iEntry++) {
+			int iMatrixIdx = pBoneComb[iAttriIdx].BoneId[iEntry];
+			if (iMatrixIdx != UINT_MAX) {
+				D3DXMATRIX matTemp;
+				//D3DXMatrixMultiply(&matTemp, pMeshContainer->pSkinInfo->GetBoneOffsetMatrix(iMatrixIdx), pMeshContainer->pRelatedBoneCombineTransformMatrices[iMatrixIdx]);
+				D3DXMatrixMultiply(&matTemp, &pMeshContainer->pBoneOffsetMatrices[iMatrixIdx], pMeshContainer->pRelatedBoneCombineTransformMatrices[iMatrixIdx]);
+				//D3DXMatrixIdentity(&matTemp);
+				D3DXMatrixMultiply(&bones[iEntry], &matTemp, &g_matView);
+			}
+		}
 
+		g_pEffect->SetMatrixArray("mWorldMatrixArray", bones, pMeshContainer->NumPalattes);
+
+		D3DXCOLOR color1(pMeshContainer->pMaterials[pBoneComb[iAttriIdx].AttribId].MatD3D.Ambient);
+		D3DXCOLOR color2(.25, .25, .25, 1.0);
+		D3DXCOLOR ambEmm;
+		D3DXColorModulate(&ambEmm, &color1, &color2);
+		ambEmm += D3DXCOLOR(pMeshContainer->pMaterials[pBoneComb[iAttriIdx].AttribId].MatD3D.Emissive);
+
+		g_pEffect->SetVector("MaterialAmbient", (D3DXVECTOR4*)&ambEmm);
+		g_pEffect->SetVector("MaterialDiffuse", (D3DXVECTOR4*)&(pMeshContainer->pMaterials[pBoneComb[iAttriIdx].AttribId].MatD3D.Diffuse));
+		
+		//pDevice->SetTexture(0, pMeshContainer->ppTextures[pBoneComb[iAttriIdx].AttribId]);
+
+		g_pEffect->SetTexture("g_MeshTexture", pMeshContainer->ppTextures[pBoneComb[iAttriIdx].AttribId]);
+
+		g_pEffect->SetInt("CurNumBones", pMeshContainer->MaxNumInfl-1);
+
+		UINT numPass;
+		g_pEffect->Begin(&numPass, D3DXFX_DONOTSAVESTATE);
+		for (UINT iPass=0; iPass<numPass; iPass++)
+		{
+			g_pEffect->BeginPass(iPass);
+			pMeshContainer->MeshData.pMesh->DrawSubset(iAttriIdx);
+			g_pEffect->EndPass();
+		}
+		g_pEffect->End();
+
+		
+		
+	}
+	//pDevice->SetVertexShader(NULL);
 #elif defined SOFTWARE
 	
 	DWORD NumBones = pMeshContainer->pSkinInfo->GetNumBones();
@@ -615,7 +727,7 @@ void DoAnimationRender()
 		-g_vObjectCenter.z );
 	g_pDevice->SetTransform( D3DTS_WORLD, &matWorld );
 
-	D3DXMATRIX g_matView;
+	
 	D3DXVECTOR3 vEye( 0, 0, -3 * g_fObjectRadius );
 	D3DXVECTOR3 vAt( 0, 0, 0 );
 	D3DXVECTOR3 vUp( 0, 1, 0 );
@@ -646,6 +758,12 @@ void DoAnimationRender()
 	g_pDevice->SetLight(0, &light);
 	g_pDevice->LightEnable(0, TRUE);
 
+#ifdef HLSL
+	g_pEffect->SetMatrix("g_ViewProject", &g_matProj);
+	D3DXVECTOR4 vLightDir(0.0f, 1.0f, -1.0f, 0.0f);
+	D3DXVec4Normalize(&vLightDir, &vLightDir);
+	g_pEffect->SetVector("lhtDir", &vLightDir);
+#endif
 	g_pDevice->BeginScene();
 
 	DoFrameRender(g_pRootFrame);
