@@ -353,6 +353,7 @@ HRESULT MyFrameAlloc::CreateMeshContainer(LPCSTR Name, CONST D3DXMESHDATA *pMesh
 	pMeshContainer->pOrigAdjacency = new DWORD[pMeshContainer->AdjacencyLen*3];
 	memcpy(pMeshContainer->pOrigAdjacency, pAdjacency, pMeshContainer->AdjacencyLen*3*sizeof(DWORD));
 	pMeshContainer->pAdjacency = pMeshContainer->pOrigAdjacency;
+	
 
 	if (pSkinInfo) {
 		(*ppNewMeshContainer)->pSkinInfo = pSkinInfo;
@@ -445,9 +446,15 @@ FLOAT                       g_fObjectRadius;        // Radius of bounding sphere
 D3DXMATRIXA16 g_matProj;
 D3DXMATRIX g_matView;
 ID3DXEffect* g_pEffect;
+LPDIRECT3DTEXTURE9  g_pMiddleText;
+LPDIRECT3DSURFACE9 g_pMiddleSurf;
+LPDIRECT3DTEXTURE9  g_pMiddleTargetText;
+LPDIRECT3DSURFACE9 g_pMiddleTargetSurf;
+HANDLE g_pMiddleTargetHandler;
 
 
-void DoD3DAnimationInit()
+
+HRESULT DoD3DAnimationInit()
 {
 	LPDIRECT3DDEVICE9 pd3dDevice = g_pDevice;
 	pd3dDevice->SetRenderState( D3DRS_LIGHTING, TRUE );
@@ -479,6 +486,10 @@ void DoD3DAnimationInit()
 	if (lpError) {
 		text = (char*)lpError->GetBufferPointer();
 	}
+	printf("%s", text);
+	V_RETURN(D3DXCreateTexture(g_pDevice, 600, 480, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &g_pMiddleText));
+	V_RETURN(g_pMiddleText->GetSurfaceLevel(0, &g_pMiddleSurf));
+	//V_RETURN(g_pDevice->CreateRenderTarget(1024, 512, D3DFMT_A8R8G8B8, D3DMULTISAMPLE_NONE, 0, FALSE, &g_pMiddleTargetSurf, &g_pMiddleTargetHandler));
 }
 
 void DoAnimationInit()
@@ -492,8 +503,9 @@ void DoAnimationInit()
 
 #define MAX_NUM_BONES 1024
 
-void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
+HRESULT DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 {
+	HRESULT hr;
 #ifdef NONINDEXED
 	LPDIRECT3DDEVICE9 pDevice;
 	pMeshContainer->MeshData.pMesh->GetDevice(&pDevice);
@@ -604,7 +616,7 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 				D3DXMatrixMultiply(&bones[iEntry], &matTemp, &g_matView);
 			}
 		}
-
+		
 		g_pEffect->SetMatrixArray("mWorldMatrixArray", bones, pMeshContainer->NumPalattes);
 
 		D3DXCOLOR color1(pMeshContainer->pMaterials[pBoneComb[iAttriIdx].AttribId].MatD3D.Ambient);
@@ -621,6 +633,16 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 		g_pEffect->SetTexture("g_MeshTexture", pMeshContainer->ppTextures[pBoneComb[iAttriIdx].AttribId]);
 
 		g_pEffect->SetInt("CurNumBones", pMeshContainer->MaxNumInfl-1);
+		g_pEffect->SetTechnique("Tech1");
+
+		LPDIRECT3DSURFACE9 pOriginalRenderTarget;
+		V_RETURN(g_pDevice->GetRenderTarget(0, &pOriginalRenderTarget));
+
+/*
+		D3DSURFACE_DESC desc;
+		V_RETURN(g_pMiddleSurf->GetDesc(&desc));*/
+		V_RETURN(g_pDevice->SetRenderTarget(0, g_pMiddleSurf));
+		V_RETURN(g_pDevice->Clear(0, NULL, D3DCLEAR_TARGET, 0, 1.0f, 0));
 
 		UINT numPass;
 		g_pEffect->Begin(&numPass, D3DXFX_DONOTSAVESTATE);
@@ -632,7 +654,20 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 		}
 		g_pEffect->End();
 
+		V_RETURN(g_pDevice->SetRenderTarget(0, pOriginalRenderTarget));
+
+		g_pEffect->SetTechnique("Tech2");
 		
+		V_RETURN(g_pEffect->SetTexture("g_Tech2Text", g_pMiddleText));
+		g_pEffect->Begin(&numPass, D3DXFX_DONOTSAVESTATE);
+		for (UINT iPass = 0; iPass<numPass; iPass++)
+		{
+			g_pEffect->BeginPass(iPass);
+			pMeshContainer->MeshData.pMesh->DrawSubset(iAttriIdx);
+			g_pEffect->EndPass();
+		}
+		g_pEffect->End();
+
 		
 	}
 	//pDevice->SetVertexShader(NULL);
@@ -675,6 +710,7 @@ void DoMeshContainerRender(MyMeshContainer* pMeshContainer)
 
 	SAFE_DELETE_ARRAY(pAttributeTbl);
 #endif
+	return 0;
 }
 
 void DoFrameRender(LPD3DXFRAME pFrame)
@@ -746,9 +782,9 @@ void DoAnimationRender()
 	D3DXVECTOR3 vecLightDirUnnormalized( 0.0f, -1.0f, 1.0f );
 	ZeroMemory( &light, sizeof( D3DLIGHT9 ) );
 	light.Type = D3DLIGHT_DIRECTIONAL;
-	light.Diffuse.r = 1.0f;
-	light.Diffuse.g = 1.0f;
-	light.Diffuse.b = 1.0f;
+	light.Diffuse.r = 0.0f;
+	light.Diffuse.g = 0.0f;
+	light.Diffuse.b = 0.0f;
 	D3DXVec3Normalize( ( D3DXVECTOR3* )&light.Direction, &vecLightDirUnnormalized );
 	light.Position.x = 0.0f;
 	light.Position.y = 1000.0f;

@@ -94,5 +94,8 @@
     <ClInclude Include="Animation.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="MyShader.fx">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>
